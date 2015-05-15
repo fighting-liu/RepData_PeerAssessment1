@@ -23,7 +23,7 @@ library(dplyr)
 
 ```r
 library(lubridate)
-unzip(zipfile = "activity.zip")
+unzip(zipfile = "activity.zip", overwrite = TRUE)
 data <- read.csv(file = "activity.csv", header = TRUE)
 data <- tbl_df(data)
 ```
@@ -33,6 +33,7 @@ data <- tbl_df(data)
 ## What is mean total number of steps taken per day?
 
 ```r
+## group the data by date to get the steps taken per day
 grop_by_date <- group_by(data, date)
 sumSteps_each_day <- summarize(grop_by_date, sum(steps, na.rm = TRUE))
 colnames(sumSteps_each_day) <- c("date", "sumOfSteps")
@@ -40,9 +41,10 @@ colnames(sumSteps_each_day) <- c("date", "sumOfSteps")
 hist(sumSteps_each_day$sumOfSteps, xlab = "sum of steps", main = "Histogram of steps each day", breaks = 20, col = "red")
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-2-1.png) 
+![](PA1_template_files/figure-html/sumSteps_each_day-1.png) 
 
 ```r
+## mean of the total steps taken per day
 mean(sumSteps_each_day$sumOfSteps, na.rm = TRUE)
 ```
 
@@ -51,6 +53,7 @@ mean(sumSteps_each_day$sumOfSteps, na.rm = TRUE)
 ```
 
 ```r
+## median of the total steps taken per day
 median(sumSteps_each_day$sumOfSteps, na.rm = TRUE)
 ```
 
@@ -58,28 +61,24 @@ median(sumSteps_each_day$sumOfSteps, na.rm = TRUE)
 ## [1] 10395
 ```
 
-```r
-# meanSteps_each_day <- summarize(grop_by_date, mean(steps, na.rm = TRUE))
-# colnames(meanSteps_each_day) <- c("date", "meanOfSteps")
-# meanSteps_each_day
-```
-
 
 
 ## What is the average daily activity pattern?
 
 ```r
+## group the data by interval 
 group_by_interval <- group_by(data, interval)
 meanSteps_each_interval <- summarize(group_by_interval, mean(steps, na.rm = TRUE))
 colnames(meanSteps_each_interval) <- c("interval", "averageSteps")
-plot(meanSteps_each_interval$interval, meanSteps_each_interval$averageSteps, type = "l",
-                main = "Time series steps", xlab = "interval", ylab = "steps")
+with(meanSteps_each_interval, plot(interval, averageSteps, type = "l",main = "Time series steps", xlab = "interval", ylab = "steps"))
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-3-1.png) 
+![](PA1_template_files/figure-html/daily_activity_pattern-1.png) 
 
 ```r
+## this interval has the maximum average steps
 max_row <- subset(meanSteps_each_interval, averageSteps == max(averageSteps))
+## get the interval with the max average steps
 max_row[1, 1]
 ```
 
@@ -95,6 +94,7 @@ max_row[1, 1]
 
 ```r
 ## 1.calculate and report the total number of missing values in the data set
+## (i use the 5-minute interval to replace)
 missing_value_data <- data[is.na(data$steps),]
 nrow(missing_value_data)
 ```
@@ -111,7 +111,8 @@ data[is.na(data$steps), 1] <- data[is.na(data$steps), 4]
 ## 3.create a new data with the missing values filled in
 new_data <- select(data, steps:interval)
 
-## 4.
+## 4.make a histogram
+## group the new data by date
 grop_by_date <- group_by(new_data, date)
 sumSteps_each_day <- summarize(grop_by_date, sum(steps))
 colnames(sumSteps_each_day) <- c("date", "sumOfSteps")
@@ -119,9 +120,10 @@ colnames(sumSteps_each_day) <- c("date", "sumOfSteps")
 hist(sumSteps_each_day$sumOfSteps, xlab = "sum of steps", main = "Histogram of steps each day", breaks = 20, col = "red")
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-4-1.png) 
+![](PA1_template_files/figure-html/new_sumSteps_each_day-1.png) 
 
 ```r
+## mean of the total steps taken per day
 mean(sumSteps_each_day$sumOfSteps)
 ```
 
@@ -130,32 +132,37 @@ mean(sumSteps_each_day$sumOfSteps)
 ```
 
 ```r
+## median of the total steps taken per day
 median(sumSteps_each_day$sumOfSteps)
 ```
 
 ```
 ## [1] 10766.19
 ```
-**From the resut, compared with the previous one, the gross level improved. Data are centered more around the mean value**
+**From the resut, compared with the previous one, the gross level improved. Data are centered more around the mean value, beacuse we just use the mean data to replace the NA value, so the mean steps improve a lot, if the value is NA, it means we don't know the value, but it doesn't mean the real value doesn't exist. And it seems fair to us e the mean value to replace the NA value**
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
 ```r
+## create a new factor with two levels
 new_data$date <- ymd(new_data$date)
 new_data <- mutate(new_data, weekdays = weekdays(new_data$date))
 weekend <- c("Saturday", "Sunday")
-
+## to check whether the date is in weekend
 new_data <- mutate(new_data, isWeekend = is.element(new_data$weekdays, weekend))
 new_data <- mutate(new_data, weekdays = factor(new_data$isWeekend, labels = c("weekday", "weekend")))
+## this is new data, with the new column weekdays
 new_data <- select(new_data, steps:weekdays)
 
+## get the weekday data with the "weekdays" column is weekday
 weekday_data <- subset(new_data, weekdays == "weekday")
 weekday_group_by_interval <- group_by(weekday_data, interval)
 weekday_meansteps_eachinterval <- summarise(weekday_group_by_interval, mean(steps))
 weekday_meansteps_eachinterval <- mutate(weekday_meansteps_eachinterval, weekdays = rep("weekday", nrow(weekday_meansteps_eachinterval)))
 colnames(weekday_meansteps_eachinterval) <- c("interval", "meanSteps", "weekdays")
 
+## get the weekend data with the "weekdays" column is weekend
 weekend_data <- subset(new_data, weekdays == "weekend")
 weekend_group_by_interval <- group_by(weekend_data, interval)
 weekend_meansteps_eachinterval <- summarise(weekend_group_by_interval, mean(steps))
@@ -164,11 +171,11 @@ colnames(weekend_meansteps_eachinterval) <- c("interval", "meanSteps", "weekdays
 
 
 library(lattice)
+## the final data reqired, with column names "interval", "meanSteps", and "weekdays"
+data_final <- rbind(weekday_meansteps_eachinterval, weekend_meansteps_eachinterval)
 
-df_final <- rbind(weekday_meansteps_eachinterval, weekend_meansteps_eachinterval)
-
-xyplot(meanSteps ~ interval | weekdays, data = df_final, layout = c(1, 2), 
+xyplot(meanSteps ~ interval | weekdays, data = data_final, layout = c(1, 2), 
        type = "l", ylab = "Number of steps")
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-5-1.png) 
+![](PA1_template_files/figure-html/difference_in_activityPatterns-1.png) 
