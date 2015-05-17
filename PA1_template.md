@@ -22,10 +22,26 @@ library(dplyr)
 ```
 
 ```r
+library(lattice)
 library(lubridate)
+library(ggplot2)
+```
+
+```
+## Warning: package 'ggplot2' was built under R version 3.1.3
+```
+
+```r
+library(scales)
 unzip(zipfile = "activity.zip", overwrite = TRUE)
 data <- read.csv(file = "activity.csv", header = TRUE)
 data <- tbl_df(data)
+
+
+# data <- mutate(data, hours = interval %/% 100, minutes = interval %% 100)
+# data <- mutate(data, time = paste(hours, minutes, sep = ":"))
+# data <- select(data, steps, date, time, interval)
+# data$time <- hm(data$time)
 ```
 
 
@@ -67,19 +83,30 @@ median(sumSteps_each_day$sumOfSteps, na.rm = TRUE)
 
 ```r
 ## group the data by interval 
+
 group_by_interval <- group_by(data, interval)
 meanSteps_each_interval <- summarize(group_by_interval, mean(steps, na.rm = TRUE))
 colnames(meanSteps_each_interval) <- c("interval", "averageSteps")
-with(meanSteps_each_interval, plot(interval, averageSteps, type = "l",main = "Time series steps", xlab = "interval", ylab = "steps"))
+
+##-------------
+meanSteps_each_interval <- mutate(meanSteps_each_interval, hours = interval %/% 100, minutes = interval %% 100)
+meanSteps_each_interval <- mutate(meanSteps_each_interval, 
+                                  time = paste(sprintf("%02d:%02d",hours, minutes), sep = ""))
+meanSteps_each_interval <- select(meanSteps_each_interval, time, averageSteps, interval)
+meanSteps_each_interval$time <- strptime(meanSteps_each_interval$time, format = "%H : %M")
+g <- ggplot(meanSteps_each_interval, aes(time, averageSteps)) 
+g + geom_line()  + scale_x_datetime(labels = date_format("%H:%M"), breaks = date_breaks("2 hour")) + labs(x = "time") + labs(y = "steps") + labs(title = "time series steps")
 ```
 
 ![](PA1_template_files/figure-html/daily_activity_pattern-1.png) 
 
 ```r
+##-------------
+
 ## this interval has the maximum average steps
 max_row <- subset(meanSteps_each_interval, averageSteps == max(averageSteps))
 ## get the interval with the max average steps
-max_row[1, 1]
+max_row[1, 3]
 ```
 
 ```
@@ -170,12 +197,25 @@ weekend_meansteps_eachinterval <- mutate(weekend_meansteps_eachinterval, weekday
 colnames(weekend_meansteps_eachinterval) <- c("interval", "meanSteps", "weekdays")
 
 
-library(lattice)
 ## the final data reqired, with column names "interval", "meanSteps", and "weekdays"
 data_final <- rbind(weekday_meansteps_eachinterval, weekend_meansteps_eachinterval)
+##-----------
+data_final <- mutate(data_final, hours = interval %/% 100, minutes = interval %% 100)
+data_final <- mutate(data_final,
+                        time = paste(sprintf("%02d:%02d",hours, minutes), sep = ""))
+data_final <- select(data_final, time, meanSteps, weekdays)
+data_final$time <- strptime(data_final$time, format = "%H : %M")
 
-xyplot(meanSteps ~ interval | weekdays, data = data_final, layout = c(1, 2), 
-       type = "l", ylab = "Number of steps")
+g <- ggplot(data_final, aes(time, meanSteps))
+g + geom_line() + scale_x_datetime(labels = date_format("%H:%M"), breaks = date_breaks("2 hour")) + facet_wrap(~ weekdays, nrow = 2) + labs(x = "interval") + labs(y = "Number of steps")
 ```
 
 ![](PA1_template_files/figure-html/difference_in_activityPatterns-1.png) 
+
+```r
+##-----------
+
+
+# xyplot(meanSteps ~ interval | weekdays, data = data_final, layout = c(1, 2), 
+#        type = "l", ylab = "Number of steps")
+```
